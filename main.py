@@ -1,6 +1,8 @@
 from mesa import Model, Agent
 from mesa.datacollection import DataCollector
 from mesa.time import SimultaneousActivation
+from mesa.batchrunner import batch_run
+import pandas as pd
 
 
 class SmallWorldAgentBasic(Agent):
@@ -76,17 +78,17 @@ class SmallWorldModel(Model):
         self.infect_probability = r
 
         self.schedule = SimultaneousActivation(self)
-        '''
-        self.datacollector = DataCollector(  # < Note that we have both an agent and model data collector
-            model_reporters={"Opinion_groups": get_number_opinion_groups}, agent_reporters={"Opinion": "opinion"}
-        )
-        '''
+
         # Create agents
         for i in range(self.num_agents):
             agent = SmallWorldAgentBasic(i, [0]*k, self)
             self.schedule.add(agent)
 
         agents = self.schedule.agents
+
+        self.datacollector = DataCollector(
+            agent_reporters={"Infected": "infected"}
+        )
 
         # make the k nearest neighbors the official neighbors
         for j in range(int(self.num_neighbors / 2)):
@@ -135,3 +137,18 @@ class SmallWorldModel(Model):
 model = SmallWorldModel(100, 4, 0.2, 0.5)
 while model.schedule.steps < 100:
     model.step()
+
+params = {"N": 100, "k": 4, "p": 0.2, "r": 0.5}
+
+results = batch_run(
+    SmallWorldModel,
+    parameters=params,
+    iterations= 10,
+    max_steps= 1,
+    number_processes=1,
+    data_collection_period= -1,
+    display_progress=True,
+)
+
+results_df = pd.DataFrame(results)
+results_df.head()
